@@ -1,16 +1,5 @@
 import random
 
-# -----------------------------------------------------
-# GAME LOGIC MODULE
-# -----------------------------------------------------
-# This module defines:
-# - Expected behavior for each pattern
-# - Multiple-choice answer generator
-# - Explanations for correct answer
-# -----------------------------------------------------
-
-# Ground-truth behavior for the patterns
-# These are simplified educational definitions
 PATTERN_BEHAVIOR = {
     "Doji": {
         "expected": "Indecision — potential reversal or pause",
@@ -34,7 +23,7 @@ PATTERN_BEHAVIOR = {
     }
 }
 
-# Multiple-choice distractor options (cleaned to avoid duplicates)
+# Cleaner distractors
 DISTRACTORS = [
     "Bullish continuation likely",
     "Bearish continuation likely",
@@ -45,29 +34,21 @@ DISTRACTORS = [
 ]
 
 def generate_question(pattern_name):
-    """
-    Generate a multiple-choice question for the selected pattern.
-    Ensures no distractor contains overlapping wording with the correct answer.
-    """
+    """Generate a multiple-choice question for the selected pattern."""
     correct_answer = PATTERN_BEHAVIOR[pattern_name]["expected"]
     explanation = PATTERN_BEHAVIOR[pattern_name]["explanation"]
 
-    # Filter out any distractor containing key words from the correct answer
+    # Avoid distractors that repeat key words from the correct answer
     keywords = ["indecision", "reversal", "pause"]
     filtered = []
-
     for d in DISTRACTORS:
-        if not any(kw.lower() in d.lower() for kw in keywords):
+        if not any(kw in d.lower() for kw in keywords):
             filtered.append(d)
 
-    # Ensure we have enough distractors (fallback if needed)
     while len(filtered) < 3:
         filtered.append("No clear signal")
 
-    # Choose 3 fake answers
     fake_answers = random.sample(filtered, 3)
-
-    # Insert the correct one and shuffle
     choices = fake_answers + [correct_answer]
     random.shuffle(choices)
 
