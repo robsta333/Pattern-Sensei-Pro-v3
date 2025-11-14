@@ -49,3 +49,122 @@ elif page == "Statistics (Coming Soon)":
     st.title("📊 Statistics")
     st.write("Your training stats will appear here once the game is live.")
     st.write("Accuracy, streaks, weak patterns, and more!")
+
+import numpy as np
+import pandas as pd
+
+# -----------------------------------------------------
+# Pattern Generator Module
+# -----------------------------------------------------
+# This generates clean candle data for training visuals.
+# Each pattern returns a pandas DataFrame with OHLC data.
+# -----------------------------------------------------
+
+def generate_doji():
+    open_price = 100
+    close_price = open_price + np.random.uniform(-0.2, 0.2)
+    high = open_price + np.random.uniform(0.5, 1.5)
+    low = open_price - np.random.uniform(0.5, 1.5)
+    return _create_df(open_price, high, low, close_price)
+
+
+def generate_hammer():
+    open_price = 100
+    close_price = open_price + np.random.uniform(0.5, 1.0)  # close slightly above open
+    low = open_price - np.random.uniform(2.0, 3.0)          # long lower shadow
+    high = close_price + np.random.uniform(0.2, 0.5)
+    return _create_df(open_price, high, low, close_price)
+
+
+def generate_shooting_star():
+    open_price = 100
+    close_price = open_price - np.random.uniform(0.5, 1.0)  # bearish subtle close
+    high = open_price + np.random.uniform(2.0, 3.0)         # long upper shadow
+    low = close_price - np.random.uniform(0.2, 0.5)
+    return _create_df(open_price, high, low, close_price)
+
+
+def generate_bullish_engulfing():
+    # candle 1: bearish
+    o1 = 100
+    c1 = o1 - np.random.uniform(1.0, 2.0)
+    h1 = max(o1, c1) + np.random.uniform(0.2, 0.5)
+    l1 = min(o1, c1) - np.random.uniform(0.2, 0.5)
+
+    # candle 2: bullish engulfing
+    o2 = c1 - np.random.uniform(0.5, 1.0)
+    c2 = o1 + np.random.uniform(1.0, 2.0)
+    h2 = max(o2, c2) + np.random.uniform(0.2, 0.5)
+    l2 = min(o2, c2) - np.random.uniform(0.2, 0.5)
+
+    data = [
+        [o1, h1, l1, c1],
+        [o2, h2, l2, c2]
+    ]
+    return _df_multi(data)
+
+
+def generate_bearish_engulfing():
+    # candle 1: bullish
+    o1 = 100
+    c1 = o1 + np.random.uniform(1.0, 2.0)
+    h1 = max(o1, c1) + np.random.uniform(0.2, 0.5)
+    l1 = min(o1, c1) - np.random.uniform(0.2, 0.5)
+
+    # candle 2: bearish engulfing
+    o2 = c1 + np.random.uniform(0.5, 1.0)
+    c2 = o1 - np.random.uniform(1.0, 2.0)
+    h2 = max(o2, c2) + np.random.uniform(0.2, 0.5)
+    l2 = min(o2, c2) - np.random.uniform(0.2, 0.5)
+
+    data = [
+        [o1, h1, l1, c1],
+        [o2, h2, l2, c2]
+    ]
+    return _df_multi(data)
+
+
+# -----------------------------------------------------
+# Helper Functions
+# -----------------------------------------------------
+
+def _create_df(open_price, high, low, close_price):
+    """Creates a single-candle OHLC DataFrame."""
+    return pd.DataFrame({
+        "open": [open_price],
+        "high": [high],
+        "low": [low],
+        "close": [close_price]
+    })
+
+
+def _df_multi(data_list):
+    """Creates multi-candle DataFrame for 2–3 candle patterns."""
+    o, h, l, c = [], [], [], []
+    for row in data_list:
+        o.append(row[0])
+        h.append(row[1])
+        l.append(row[2])
+        c.append(row[3])
+
+    return pd.DataFrame({
+        "open": o,
+        "high": h,
+        "low": l,
+        "close": c
+    })
+
+
+# -----------------------------------------------------
+# Pattern Selector
+# -----------------------------------------------------
+def get_pattern(name):
+    patterns = {
+        "Doji": generate_doji,
+        "Hammer": generate_hammer,
+        "Shooting Star": generate_shooting_star,
+        "Bullish Engulfing": generate_bullish_engulfing,
+        "Bearish Engulfing": generate_bearish_engulfing,
+    }
+    return patterns[name]()
+
