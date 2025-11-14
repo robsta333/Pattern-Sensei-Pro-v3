@@ -32,38 +32,71 @@ page = st.sidebar.radio(
 
 if page == "Home":
     st.title("📈 Trading Education Game")
-    st.write("Welcome! This is the start of your interactive trading education platform.")
+    st.write("Welcome to your interactive candlestick training app!")
     st.markdown("""
-    The platform now supports:
+    This app now supports:
     - 🕹️ Pattern previews  
     - ❓ Prediction quizzes  
-    - 🧠 Immediate feedback  
+    - 🧠 Correct/incorrect feedback  
+    - 🔄 Fully reset when switching patterns  
     """)
-    st.info("Go to the Training Game tab to start practicing candlestick patterns!")
+    st.info("Click *Training Game* to begin your practice.")
 
 
 # -----------------------------------------------------
-# TRAINING GAME PAGE — FULL QUIZ LOGIC WITH SESSION STATE
+# TRAINING GAME PAGE — FULLY FIXED LOGIC
 # -----------------------------------------------------
 
 elif page == "Training Game":
-    st.title("🕹️ Training Game — Candlestick Pattern Quiz")
+    st.title("🕹️ Training Game — Pattern Prediction Quiz")
+    st.write("Choose a pattern, generate a question, and test your prediction skills.")
 
-    st.write("Select a pattern, generate a quiz question, and test your prediction skills!")
-
-    # Pattern selection dropdown
+    # -----------------------------------------------
+    # PATTERN SELECTION
+    # -----------------------------------------------
     pattern_choice = st.selectbox(
         "Choose a pattern:",
         ["Doji", "Hammer", "Shooting Star", "Bullish Engulfing", "Bearish Engulfing"],
         key="pattern_choice"
     )
 
-    # Generate pattern candles
+    # -----------------------------------------------
+    # SESSION STATE INITIALIZATION
+    # -----------------------------------------------
+    if "current_pattern" not in st.session_state:
+        st.session_state.current_pattern = pattern_choice
+
+    if "quiz_state" not in st.session_state:
+        st.session_state.quiz_state = {
+            "generated": False,
+            "question_text": None,
+            "choices": None,
+            "correct_answer": None,
+            "explanation": None,
+            "user_answer": None
+        }
+
+    # -----------------------------------------------
+    # RESET QUIZ IF PATTERN CHANGES
+    # -----------------------------------------------
+    if st.session_state.current_pattern != pattern_choice:
+        st.session_state.current_pattern = pattern_choice
+        st.session_state.quiz_state = {
+            "generated": False,
+            "question_text": None,
+            "choices": None,
+            "correct_answer": None,
+            "explanation": None,
+            "user_answer": None
+        }
+
+    # -----------------------------------------------
+    # GENERATE PATTERN AND DISPLAY CHART
+    # -----------------------------------------------
     df = patterns.get_pattern(pattern_choice)
 
     st.subheader(f"Pattern Preview: {pattern_choice}")
 
-    # Build and display candlestick chart
     fig = go.Figure(data=[go.Candlestick(
         open=df["open"],
         high=df["high"],
@@ -88,53 +121,36 @@ elif page == "Training Game":
 
     st.plotly_chart(fig, use_container_width=True)
 
+    # -----------------------------------------------
+    # QUIZ LOGIC
+    # -----------------------------------------------
     st.subheader("❓ Prediction Question")
 
-    # -------------------------------------------
-    # Initialize session state variables
-    # -------------------------------------------
-    if "quiz_state" not in st.session_state:
-        st.session_state.quiz_state = {
-            "question_generated": False,
-            "question_text": None,
-            "choices": None,
-            "correct_answer": None,
-            "explanation": None,
-            "user_answer": None
-        }
-
-    # -------------------------------------------
-    # Generate a new question
-    # -------------------------------------------
+    # Generate new question
     if st.button("Generate Question"):
-        q_text, choices, correct, explanation = game_logic.generate_question(pattern_choice)
-
-        st.session_state.quiz_state["question_generated"] = True
-        st.session_state.quiz_state["question_text"] = q_text
+        q, choices, correct, expl = game_logic.generate_question(pattern_choice)
+        st.session_state.quiz_state["generated"] = True
+        st.session_state.quiz_state["question_text"] = q
         st.session_state.quiz_state["choices"] = choices
         st.session_state.quiz_state["correct_answer"] = correct
-        st.session_state.quiz_state["explanation"] = explanation
+        st.session_state.quiz_state["explanation"] = expl
         st.session_state.quiz_state["user_answer"] = None
 
-    # -------------------------------------------
-    # Display question + answer radio button
-    # -------------------------------------------
-    if st.session_state.quiz_state["question_generated"]:
+    # Display question
+    if st.session_state.quiz_state["generated"]:
         st.write(st.session_state.quiz_state["question_text"])
 
         user_answer = st.radio(
             "Your answer:",
             st.session_state.quiz_state["choices"],
-            key="user_answer_radio"
+            key="answer_radio"
         )
 
-        # Submit button
+        # Submit logic
         if st.button("Submit Answer"):
             st.session_state.quiz_state["user_answer"] = user_answer
 
-        # -------------------------------------------
         # Show feedback
-        # -------------------------------------------
         if st.session_state.quiz_state["user_answer"] is not None:
             if st.session_state.quiz_state["user_answer"] == st.session_state.quiz_state["correct_answer"]:
                 st.success("Correct! 🎉")
@@ -146,12 +162,11 @@ elif page == "Training Game":
             st.info(f"📘 Explanation: {st.session_state.quiz_state['explanation']}")
 
 
-
 # -----------------------------------------------------
 # STATISTICS PAGE
 # -----------------------------------------------------
 
 elif page == "Statistics":
     st.title("📊 Statistics")
-    st.write("Your accuracy, streaks, and performance summaries will appear here in a future update.")
-    st.info("This section will grow as we build the full game system.")
+    st.write("Scoring and progress tracking will be added next.")
+    st.info("Your accuracy, streaks, and pattern weaknesses will appear here soon!")
