@@ -34,38 +34,40 @@ PATTERN_BEHAVIOR = {
     }
 }
 
-# Multiple-choice distractor options
+# Multiple-choice distractor options (cleaned to avoid duplicates)
 DISTRACTORS = [
     "Bullish continuation likely",
     "Bearish continuation likely",
     "Sideways consolidation likely",
-    "Indecision — unclear direction",
     "Momentum weakening",
     "Trend exhaustion",
     "Reversal unlikely"
 ]
 
-
 def generate_question(pattern_name):
     """
-    Given a pattern, generate a multiple-choice prediction question.
-    Returns:
-        - question_text
-        - choices (list)
-        - correct_answer (string)
-        - explanation (string)
+    Generate a multiple-choice question for the selected pattern.
+    Ensures no distractor contains overlapping wording with the correct answer.
     """
-
     correct_answer = PATTERN_BEHAVIOR[pattern_name]["expected"]
     explanation = PATTERN_BEHAVIOR[pattern_name]["explanation"]
 
-    # Choose 3 fake answers that are not the correct one
-    fake_answers = random.sample(
-        [d for d in DISTRACTORS if d != correct_answer],
-        3
-    )
+    # Filter out any distractor containing key words from the correct answer
+    keywords = ["indecision", "reversal", "pause"]
+    filtered = []
 
-    # Insert the correct answer into the list randomly
+    for d in DISTRACTORS:
+        if not any(kw.lower() in d.lower() for kw in keywords):
+            filtered.append(d)
+
+    # Ensure we have enough distractors (fallback if needed)
+    while len(filtered) < 3:
+        filtered.append("No clear signal")
+
+    # Choose 3 fake answers
+    fake_answers = random.sample(filtered, 3)
+
+    # Insert the correct one and shuffle
     choices = fake_answers + [correct_answer]
     random.shuffle(choices)
 
