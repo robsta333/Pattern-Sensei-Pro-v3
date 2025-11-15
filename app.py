@@ -27,6 +27,19 @@ page = st.sidebar.radio(
 )
 
 # -----------------------------------------------------
+# INITIALIZE GLOBAL SCORING STATE
+# -----------------------------------------------------
+
+if "score" not in st.session_state:
+    st.session_state.score = {
+        "correct": 0,
+        "incorrect": 0,
+        "current_streak": 0,
+        "best_streak": 0
+    }
+
+
+# -----------------------------------------------------
 # HOME PAGE
 # -----------------------------------------------------
 
@@ -34,22 +47,22 @@ if page == "Home":
     st.title("📈 Trading Education Game")
     st.write("Welcome to your interactive candlestick training app!")
     st.markdown("""
-    This app now supports:
+    This version includes:
     - 🕹️ Pattern previews  
     - ❓ Prediction quizzes  
     - 🧠 Correct/incorrect feedback  
-    - 🔄 Fully reset when switching patterns  
+    - 📊 Persistent scoring (correct / incorrect / streaks / accuracy)  
     """)
-    st.info("Click *Training Game* to begin your practice.")
+    st.info("Begin training by selecting **Training Game** in the sidebar.")
 
 
 # -----------------------------------------------------
-# TRAINING GAME PAGE — FULLY FIXED LOGIC
+# TRAINING GAME PAGE — WITH SCORING
 # -----------------------------------------------------
 
 elif page == "Training Game":
     st.title("🕹️ Training Game — Pattern Prediction Quiz")
-    st.write("Choose a pattern, generate a question, and test your prediction skills.")
+    st.write("Choose a pattern, generate a question, test your skills, and build your score.")
 
     # -----------------------------------------------
     # PATTERN SELECTION
@@ -61,7 +74,7 @@ elif page == "Training Game":
     )
 
     # -----------------------------------------------
-    # SESSION STATE INITIALIZATION
+    # SESSION STATE FOR QUIZ LOGIC
     # -----------------------------------------------
     if "current_pattern" not in st.session_state:
         st.session_state.current_pattern = pattern_choice
@@ -76,9 +89,7 @@ elif page == "Training Game":
             "user_answer": None
         }
 
-    # -----------------------------------------------
-    # RESET QUIZ IF PATTERN CHANGES
-    # -----------------------------------------------
+    # Reset quiz when pattern changes
     if st.session_state.current_pattern != pattern_choice:
         st.session_state.current_pattern = pattern_choice
         st.session_state.quiz_state = {
@@ -114,29 +125,28 @@ elif page == "Training Game":
         height=400,
         width=600,
         margin=dict(l=40, r=40, t=40, b=40),
-        xaxis_rangeslider_visible=False,
-        xaxis_title="Candle Index",
-        yaxis_title="Price"
+        xaxis_rangeslider_visible=False
     )
 
     st.plotly_chart(fig, use_container_width=True)
 
     # -----------------------------------------------
-    # QUIZ LOGIC
+    # QUIZ QUESTION GENERATION
     # -----------------------------------------------
     st.subheader("❓ Prediction Question")
 
-    # Generate new question
     if st.button("Generate Question"):
         q, choices, correct, expl = game_logic.generate_question(pattern_choice)
-        st.session_state.quiz_state["generated"] = True
-        st.session_state.quiz_state["question_text"] = q
-        st.session_state.quiz_state["choices"] = choices
-        st.session_state.quiz_state["correct_answer"] = correct
-        st.session_state.quiz_state["explanation"] = expl
-        st.session_state.quiz_state["user_answer"] = None
+        st.session_state.quiz_state = {
+            "generated": True,
+            "question_text": q,
+            "choices": choices,
+            "correct_answer": correct,
+            "explanation": expl,
+            "user_answer": None
+        }
 
-    # Display question
+    # Display question when ready
     if st.session_state.quiz_state["generated"]:
         st.write(st.session_state.quiz_state["question_text"])
 
@@ -150,16 +160,43 @@ elif page == "Training Game":
         if st.button("Submit Answer"):
             st.session_state.quiz_state["user_answer"] = user_answer
 
-        # Show feedback
-        if st.session_state.quiz_state["user_answer"] is not None:
-            if st.session_state.quiz_state["user_answer"] == st.session_state.quiz_state["correct_answer"]:
+            # ----------------------------
+            # SCORING UPDATE
+            # ----------------------------
+            if user_answer == st.session_state.quiz_state["correct_answer"]:
                 st.success("Correct! 🎉")
+                st.session_state.score["correct"] += 1
+                st.session_state.score["current_streak"] += 1
+
+                # Update best streak
+                if st.session_state.score["current_streak"] > st.session_state.score["best_streak"]:
+                    st.session_state.score["best_streak"] = st.session_state.score["current_streak"]
+
             else:
                 st.error(
                     f"Incorrect. The correct answer is: **{st.session_state.quiz_state['correct_answer']}**"
                 )
+                st.session_state.score["incorrect"] += 1
+                st.session_state.score["current_streak"] = 0
 
             st.info(f"📘 Explanation: {st.session_state.quiz_state['explanation']}")
+
+    # -----------------------------------------------
+    # DISPLAY CURRENT STATS INLINE
+    # -----------------------------------------------
+    st.markdown("---")
+    st.subheader("📊 Live Statistics")
+
+    correct = st.session_state.score["correct"]
+    incorrect = st.session_state.score["incorrect"]
+    total = correct + incorrect
+    accuracy = (correct / total * 100) if total > 0 else 0
+
+    st.write(f"**Correct:** {correct}")
+    st.write(f"**Incorrect:** {incorrect}")
+    st.write(f"**Accuracy:** {accuracy:.1f}%")
+    st.write(f"**Current streak:** {st.session_state.score['current_streak']}")
+    st.write(f"**Best streak:** {st.session_state.score['best_streak']}")
 
 
 # -----------------------------------------------------
@@ -168,5 +205,17 @@ elif page == "Training Game":
 
 elif page == "Statistics":
     st.title("📊 Statistics")
-    st.write("Scoring and progress tracking will be added next.")
-    st.info("Your accuracy, streaks, and pattern weaknesses will appear here soon!")
+
+    correct = st.session_state.score["correct"]
+    incorrect = st.session_state.score["incorrect"]
+    total = correct + incorrect
+    accuracy = (correct / total * 100) if total > 0 else 0
+
+    st.subheader("Your Performance")
+    st.write(f"**Total questions:** {total}")
+    st.write(f"**Correct answers:** {correct}")
+    st.write(f"**Incorrect answers:** {incorrect}")
+    st.write(f"**Accuracy:** {accuracy:.1f}%")
+    st.write(f"**Best streak:** {st.session_state.score['best_streak']}")
+
+    st.info("As you play more questions, your statistics will update automatically.")
