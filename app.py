@@ -3,12 +3,12 @@ import plotly.graph_objects as go
 import pandas as pd
 import numpy as np
 
-# Import modules
+# Import your local modules
 import patterns
 import game_logic
 
 # -----------------------------------------------------
-# BASIC APP SETUP
+# STREAMLIT CONFIG
 # -----------------------------------------------------
 
 st.set_page_config(
@@ -18,7 +18,7 @@ st.set_page_config(
 )
 
 # -----------------------------------------------------
-# SIDEBAR
+# SIDEBAR NAVIGATION
 # -----------------------------------------------------
 
 st.sidebar.title("📘 Navigation")
@@ -28,7 +28,7 @@ page = st.sidebar.radio(
 )
 
 # -----------------------------------------------------
-# GLOBAL SCORING STATE (SHARED BY BOTH MODES)
+# GLOBAL SCORING STATE
 # -----------------------------------------------------
 
 if "score" not in st.session_state:
@@ -39,48 +39,50 @@ if "score" not in st.session_state:
         "best_streak": 0
     }
 
-# Utility function to compute accuracy
 def compute_accuracy():
-    correct = st.session_state.score["correct"]
-    incorrect = st.session_state.score["incorrect"]
-    total = correct + incorrect
-    if total == 0:
-        return 0.0
-    return correct / total * 100.0
+    c = st.session_state.score["correct"]
+    i = st.session_state.score["incorrect"]
+    t = c + i
+    return (c / t * 100.0) if t > 0 else 0.0
 
 
-# =====================================================
+# -----------------------------------------------------
 # HOME PAGE
-# =====================================================
+# -----------------------------------------------------
 
 if page == "Home":
     st.title("📈 Trading Education Game")
-    st.write("Welcome to your interactive candlestick training app!")
+    st.write("Welcome to your interactive candlestick training platform.")
+
     st.markdown("""
-    This app currently includes:
-    - 🕹️ **Training Game** — Learn what classic candlestick patterns *mean*  
-    - 🔮 **Predict the Next Candle** — Practice guessing what comes next in a sequence  
-    - 📊 **Statistics** — Track your accuracy, streaks, and progress  
+    ### Available Modes:
+    **🕹️ Training Game**  
+    Learn what classic candlestick patterns *mean*.
+
+    **🔮 Predict the Next Candle**  
+    Practice forecasting the next candle from real sequences.
+
+    **📊 Statistics**  
+    Track your accuracy, streaks, and progress.
     """)
-    st.info("Use the sidebar to switch between modes.")
+
+    st.info("Use the sidebar to choose a mode.")
 
 
 # =====================================================
-# TRAINING GAME — PATTERN MEANING QUIZ
+# TRAINING GAME — CANDLE PATTERN MEANING QUIZ
 # =====================================================
 
 elif page == "Training Game":
     st.title("🕹️ Training Game — Pattern Meaning Quiz")
-    st.write("Choose a pattern, generate a question, test your understanding, and build your score.")
 
-    # ---------------- Pattern selection ----------------
     pattern_choice = st.selectbox(
         "Choose a pattern:",
         ["Doji", "Hammer", "Shooting Star", "Bullish Engulfing", "Bearish Engulfing"],
         key="pattern_choice"
     )
 
-    # ---------------- Session state for this mode ----------------
+    # Session state for this mode
     if "current_pattern" not in st.session_state:
         st.session_state.current_pattern = pattern_choice
 
@@ -106,37 +108,21 @@ elif page == "Training Game":
             "user_answer": None
         }
 
-    # ---------------- Generate and plot the pattern ----------------
+    # Plot pattern candles
     df = patterns.get_pattern(pattern_choice)
 
     st.subheader(f"Pattern Preview: {pattern_choice}")
-
     fig = go.Figure(data=[go.Candlestick(
-        open=df["open"],
-        high=df["high"],
-        low=df["low"],
-        close=df["close"],
-        increasing_line_color="green",
-        decreasing_line_color="red",
-        increasing_fillcolor="green",
-        decreasing_fillcolor="red",
-        increasing_line_width=2,
-        decreasing_line_width=2
+        open=df["open"], high=df["high"], low=df["low"], close=df["close"],
+        increasing_line_color="green", decreasing_line_color="red",
+        increasing_fillcolor="green", decreasing_fillcolor="red"
     )])
-
-    fig.update_layout(
-        height=400,
-        width=600,
-        margin=dict(l=40, r=40, t=40, b=40),
-        xaxis_rangeslider_visible=False
-    )
-
+    fig.update_layout(height=400, width=600, xaxis_rangeslider_visible=False)
     st.plotly_chart(fig, use_container_width=True)
 
-    # ---------------- Quiz generation ----------------
     st.subheader("❓ Prediction Question (Pattern Meaning)")
 
-    if st.button("Generate Question", key="generate_pattern_question"):
+    if st.button("Generate Question", key="generate_pattern_q"):
         q, choices, correct, expl = game_logic.generate_question(pattern_choice)
         st.session_state.pattern_quiz_state = {
             "generated": True,
@@ -147,17 +133,16 @@ elif page == "Training Game":
             "user_answer": None
         }
 
-    # Display question when ready
     if st.session_state.pattern_quiz_state["generated"]:
         st.write(st.session_state.pattern_quiz_state["question_text"])
 
         user_answer = st.radio(
             "Your answer:",
             st.session_state.pattern_quiz_state["choices"],
-            key="pattern_answer_radio"
+            key="pattern_radio"
         )
 
-        if st.button("Submit Answer", key="submit_pattern_answer"):
+        if st.button("Submit Answer", key="submit_pattern_q"):
             st.session_state.pattern_quiz_state["user_answer"] = user_answer
 
             if user_answer == st.session_state.pattern_quiz_state["correct_answer"]:
@@ -168,22 +153,21 @@ elif page == "Training Game":
                     st.session_state.score["best_streak"] = st.session_state.score["current_streak"]
             else:
                 st.error(
-                    f"Incorrect. The correct answer is: **{st.session_state.pattern_quiz_state['correct_answer']}**"
+                    f"Incorrect. Correct answer: **{st.session_state.pattern_quiz_state['correct_answer']}**"
                 )
                 st.session_state.score["incorrect"] += 1
                 st.session_state.score["current_streak"] = 0
 
             st.info(f"📘 Explanation: {st.session_state.pattern_quiz_state['explanation']}")
 
-    # ---------------- Inline stats ----------------
+    # Inline stats
     st.markdown("---")
-    st.subheader("📊 Live Statistics (All Modes)")
-    accuracy = compute_accuracy()
-    st.write(f"**Correct:** {st.session_state.score['correct']}")
-    st.write(f"**Incorrect:** {st.session_state.score['incorrect']}")
-    st.write(f"**Accuracy:** {accuracy:.1f}%")
-    st.write(f"**Current streak:** {st.session_state.score['current_streak']}")
-    st.write(f"**Best streak:** {st.session_state.score['best_streak']}")
+    st.subheader("📊 Live Stats")
+    st.write(f"Correct: {st.session_state.score['correct']}")
+    st.write(f"Incorrect: {st.session_state.score['incorrect']}")
+    st.write(f"Accuracy: {compute_accuracy():.1f}%")
+    st.write(f"Current streak: {st.session_state.score['current_streak']}")
+    st.write(f"Best streak: {st.session_state.score['best_streak']}")
 
 
 # =====================================================
@@ -192,35 +176,84 @@ elif page == "Training Game":
 
 elif page == "Predict the Next Candle":
     st.title("🔮 Predict the Next Candle")
-    st.write("Look at the recent sequence of candles and guess what the next candle will be.")
 
-    # ---------------- Session state for this mode ----------------
-    if "next_mode_state" not in st.session_state:
-        st.session_state.next_mode_state = {
+    # -------------------------------------------------
+    # State for this mode
+    # -------------------------------------------------
+    if "next_mode" not in st.session_state:
+        st.session_state.next_mode = {
             "sequence_df": None,
-            "question_active": False,
+            "hidden_label": None,
             "user_answer": None,
-            "correct_label": None,
             "revealed": False
         }
 
-    # Helper: generate a random price sequence
-    def generate_price_sequence(num_candles=10):
-        prices = [100.0]
-        for _ in range(num_candles):
-            delta = np.random.normal(0, 0.6)
-            prices.append(prices[-1] + delta)
+    # -------------------------------------------------
+    # Helpers: Candle classification & explanations
+    # -------------------------------------------------
+
+    def classify_candle(o, c, h, l):
+        body = abs(c - o)
+        rng = h - l
+        if rng == 0:
+            return "Doji / indecision"
+        if body / rng < 0.2:
+            return "Doji / indecision"
+        return "Bullish candle" if c > o else "Bearish candle"
+
+    def explain_candle(o, c, h, l):
+        body = abs(c - o)
+        rng = h - l
+        if rng == 0 or body / rng < 0.2:
+            return "Tiny body relative to range → indecision, market unsure."
+        if c > o:
+            return "Closed strongly above open → bullish control."
+        return "Closed strongly below open → bearish control."
+
+    def explain_sequence(df):
+        closes = df["close"].values
+        msg = ""
+
+        # Trend direction
+        if closes[-1] > closes[-3]:
+            msg += "Higher closes recently → bullish pressure. "
+        elif closes[-1] < closes[-3]:
+            msg += "Lower closes recently → bearish pressure. "
+        else:
+            msg += "Flat closes → no clear trend. "
+
+        # Wick behavior
+        lows = df["low"].values
+        highs = df["high"].values
+        opens = df["open"].values
+        last_low_wicks = [o - l for o, l in zip(opens[-3:], lows[-3:])]
+        last_high_wicks = [h - c for h, c in zip(highs[-3:], closes[-3:])]
+
+        if sum(last_low_wicks) > sum(last_high_wicks):
+            msg += "Longer lower wicks → buying support. "
+        elif sum(last_high_wicks) > sum(last_low_wicks):
+            msg += "Longer upper wicks → selling pressure. "
+        else:
+            msg += "Balanced wicks → indecision. "
+
+        return msg.strip()
+
+    # -------------------------------------------------
+    # Generate random price sequence
+    # -------------------------------------------------
+
+    def generate_sequence(n=10):
+        prices = [100]
+        for _ in range(n):
+            prices.append(prices[-1] + np.random.normal(0, 0.6))
 
         opens, highs, lows, closes = [], [], [], []
-        for i in range(num_candles):
+        for i in range(n):
             o = prices[i]
-            c = prices[i + 1]
+            c = prices[i+1]
             high = max(o, c) + np.random.uniform(0.1, 0.5)
             low = min(o, c) - np.random.uniform(0.1, 0.5)
-            opens.append(o)
-            highs.append(high)
-            lows.append(low)
-            closes.append(c)
+            opens.append(o); highs.append(high); lows.append(low); closes.append(c)
 
         return pd.DataFrame({
             "open": opens,
@@ -229,130 +262,96 @@ elif page == "Predict the Next Candle":
             "close": closes
         })
 
-    # Helper: classify a candle
-    def classify_candle(o, c, h, l):
-        body = abs(c - o)
-        range_ = h - l
-        if range_ == 0:
-            return "Doji / indecision"
-        body_ratio = body / range_
-        if body_ratio < 0.2:
-            return "Doji / indecision"
-        elif c > o:
-            return "Bullish candle"
-        else:
-            return "Bearish candle"
+    # -------------------------------------------------
+    # Generate new sequence
+    # -------------------------------------------------
 
-    # ---------------- Generate new sequence button ----------------
     if st.button("Generate New Sequence"):
-        df_seq = generate_price_sequence(num_candles=10)
-        st.session_state.next_mode_state["sequence_df"] = df_seq
-        st.session_state.next_mode_state["question_active"] = True
-        st.session_state.next_mode_state["user_answer"] = None
-        st.session_state.next_mode_state["revealed"] = False
-
-        # Last candle is the "hidden" next candle
-        last = df_seq.iloc[-1]
-        st.session_state.next_mode_state["correct_label"] = classify_candle(
+        df = generate_sequence()
+        st.session_state.next_mode["sequence_df"] = df
+        last = df.iloc[-1]
+        st.session_state.next_mode["hidden_label"] = classify_candle(
             last["open"], last["close"], last["high"], last["low"]
         )
+        st.session_state.next_mode["user_answer"] = None
+        st.session_state.next_mode["revealed"] = False
 
-    # If we have an active sequence/question
-    if st.session_state.next_mode_state["question_active"] and st.session_state.next_mode_state["sequence_df"] is not None:
-        df_seq = st.session_state.next_mode_state["sequence_df"]
+    # -------------------------------------------------
+    # Display hidden sequence
+    # -------------------------------------------------
 
-        # Show all candles except the last one
-        visible_df = df_seq.iloc[:-1]
+    if st.session_state.next_mode["sequence_df"] is not None:
+        df = st.session_state.next_mode["sequence_df"]
+        visible = df.iloc[:-1]
 
-        st.subheader("Price Action (last candle hidden)")
-        fig2 = go.Figure(data=[go.Candlestick(
-            open=visible_df["open"],
-            high=visible_df["high"],
-            low=visible_df["low"],
-            close=visible_df["close"],
-            increasing_line_color="green",
-            decreasing_line_color="red",
-            increasing_fillcolor="green",
-            decreasing_fillcolor="red",
-            increasing_line_width=2,
-            decreasing_line_width=2
+        st.subheader("Price Action (Last Candle Hidden)")
+
+        fig = go.Figure(data=[go.Candlestick(
+            open=visible["open"], high=visible["high"],
+            low=visible["low"], close=visible["close"],
+            increasing_line_color="green", decreasing_line_color="red"
         )])
-
-        fig2.update_layout(
-            height=400,
-            width=600,
-            margin=dict(l=40, r=40, t=40, b=40),
-            xaxis_rangeslider_visible=False
-        )
-
-        st.plotly_chart(fig2, use_container_width=True)
+        fig.update_layout(height=400, width=600, xaxis_rangeslider_visible=False)
+        st.plotly_chart(fig, use_container_width=True)
 
         st.subheader("❓ What is the most likely next candle?")
 
         choices = ["Bullish candle", "Bearish candle", "Doji / indecision"]
 
-        user_answer_next = st.radio(
-            "Your answer:",
-            choices,
-            key="next_mode_radio"
-        )
+        user_answer = st.radio("Choose:", choices, key="next_prediction_radio")
 
         if st.button("Submit Prediction"):
-            st.session_state.next_mode_state["user_answer"] = user_answer_next
-            st.session_state.next_mode_state["revealed"] = True
+            st.session_state.next_mode["user_answer"] = user_answer
+            st.session_state.next_mode["revealed"] = True
 
-            correct_label = st.session_state.next_mode_state["correct_label"]
+            correct = st.session_state.next_mode["hidden_label"]
 
-            if user_answer_next == correct_label:
-                st.success("Correct! 🎉")
+            if user_answer == correct:
+                st.success("Correct prediction! 🎉")
                 st.session_state.score["correct"] += 1
                 st.session_state.score["current_streak"] += 1
                 if st.session_state.score["current_streak"] > st.session_state.score["best_streak"]:
                     st.session_state.score["best_streak"] = st.session_state.score["current_streak"]
             else:
-                st.error(f"Incorrect. The correct answer was: **{correct_label}**")
+                st.error(f"Incorrect. The correct answer was: **{correct}**")
                 st.session_state.score["incorrect"] += 1
                 st.session_state.score["current_streak"] = 0
 
-        # Reveal the hidden next candle and full sequence
-        if st.session_state.next_mode_state["revealed"]:
+        # -------------------------------------------------
+        # Reveal full sequence + explanation
+        # -------------------------------------------------
+        if st.session_state.next_mode["revealed"]:
             st.markdown("---")
-            st.subheader("🔍 Revealed: Full Sequence with Next Candle")
+            st.subheader("🔍 Revealed: Full Sequence")
 
-            full_df = st.session_state.next_mode_state["sequence_df"]
-
-            fig3 = go.Figure(data=[go.Candlestick(
-                open=full_df["open"],
-                high=full_df["high"],
-                low=full_df["low"],
-                close=full_df["close"],
-                increasing_line_color="green",
-                decreasing_line_color="red",
-                increasing_fillcolor="green",
-                decreasing_fillcolor="red",
-                increasing_line_width=2,
-                decreasing_line_width=2
+            # Plot full sequence
+            fig2 = go.Figure(data=[go.Candlestick(
+                open=df["open"], high=df["high"], low=df["low"], close=df["close"],
+                increasing_line_color="green", decreasing_line_color="red"
             )])
+            fig2.update_layout(height=400, width=600, xaxis_rangeslider_visible=False)
+            st.plotly_chart(fig2, use_container_width=True)
 
-            fig3.update_layout(
-                height=400,
-                width=600,
-                margin=dict(l=40, r=40, t=40, b=40),
-                xaxis_rangeslider_visible=False
+            # Explanation blocks
+            st.markdown("### 🧠 Why This Candle Formed")
+
+            seq_expl = explain_sequence(df.iloc[:-1])
+            candle_expl = explain_candle(
+                df.iloc[-1]["open"], df.iloc[-1]["close"],
+                df.iloc[-1]["high"], df.iloc[-1]["low"]
             )
 
-            st.plotly_chart(fig3, use_container_width=True)
+            st.write(f"**Sequence context:** {seq_expl}")
+            st.write(f"**Candle behavior:** {candle_expl}")
 
-            st.caption("The final candle was the one you were trying to predict.")
-
+    # Inline stats
     st.markdown("---")
-    st.subheader("📊 Live Statistics (All Modes)")
-    accuracy = compute_accuracy()
-    st.write(f"**Correct:** {st.session_state.score['correct']}")
-    st.write(f"**Incorrect:** {st.session_state.score['incorrect']}")
-    st.write(f"**Accuracy:** {accuracy:.1f}%")
-    st.write(f"**Current streak:** {st.session_state.score['current_streak']}")
-    st.write(f"**Best streak:** {st.session_state.score['best_streak']}")
+    st.subheader("📊 Live Stats")
+    st.write(f"Correct: {st.session_state.score['correct']}")
+    st.write(f"Incorrect: {st.session_state.score['incorrect']}")
+    st.write(f"Accuracy: {compute_accuracy():.1f}%")
+    st.write(f"Current streak: {st.session_state.score['current_streak']}")
+    st.write(f"Best streak: {st.session_state.score['best_streak']}")
 
 
 # =====================================================
@@ -362,16 +361,12 @@ elif page == "Predict the Next Candle":
 elif page == "Statistics":
     st.title("📊 Statistics")
 
-    correct = st.session_state.score["correct"]
-    incorrect = st.session_state.score["incorrect"]
-    total = correct + incorrect
     accuracy = compute_accuracy()
-
     st.subheader("Overall Performance")
-    st.write(f"**Total questions (all modes):** {total}")
-    st.write(f"**Correct answers:** {correct}")
-    st.write(f"**Incorrect answers:** {incorrect}")
+
+    st.write(f"**Correct answers:** {st.session_state.score['correct']}")
+    st.write(f"**Incorrect answers:** {st.session_state.score['incorrect']}")
     st.write(f"**Accuracy:** {accuracy:.1f}%")
     st.write(f"**Best streak:** {st.session_state.score['best_streak']}")
 
-    st.info("Both the Pattern Meaning Game and Predict the Next Candle mode contribute to these stats.")
+    st.info("Both modes contribute to your statistics.")
